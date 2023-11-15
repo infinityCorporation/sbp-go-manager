@@ -54,7 +54,16 @@ func main() {
 	ctx, cancelCtx := context.WithCancel(context.Background())
 
 	serverOne := &http.Server{
-		Addr:    ":5000",
+		Addr:    ":1000",
+		Handler: mux,
+		BaseContext: func(l net.Listener) context.Context {
+			ctx = context.WithValue(ctx, keyServerAddr, l.Addr().String())
+			return ctx
+		},
+	}
+
+	serverTwo := &http.Server{
+		Addr:    ":2000",
 		Handler: mux,
 		BaseContext: func(l net.Listener) context.Context {
 			ctx = context.WithValue(ctx, keyServerAddr, l.Addr().String())
@@ -68,6 +77,16 @@ func main() {
 			fmt.Printf("server one closed\n")
 		} else if err != nil {
 			fmt.Printf("error listening for server one: %s\n", err)
+		}
+		cancelCtx()
+	}()
+
+	go func() {
+		err := serverTwo.ListenAndServe()
+		if errors.Is(err, http.ErrServerClosed) {
+			fmt.Printf("server two closed\n")
+		} else if err != nil {
+			fmt.Printf("error listening for server two: %s\n", err)
 		}
 		cancelCtx()
 	}()
